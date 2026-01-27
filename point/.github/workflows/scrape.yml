@@ -1,47 +1,66 @@
 name: Hallym Notice Scraper
 
 on:
-  push:              # <--- 이 줄을 추가하세요! (저장하면 자동실행)
   schedule:
-    - cron: '0 * * * *'
+    - cron: "0 * * * *"   # 매시 정각(UTC). 한국시간(KST)은 +9시간.
   workflow_dispatch:
+
+concurrency:
+  group: hallym-notice-scraper
+  cancel-in-progress: true
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+
     steps:
-      - name: 저장소 코드 가져오기
-        uses: actions/checkout@v3
-
-      - name: 파이썬 설정
-        uses: actions/setup-python@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          python-version: '3.9'
+          fetch-depth: 0
 
-      - name: 라이브러리 설치
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
         run: pip install requests beautifulsoup4 python-telegram-bot
 
-      - name: 크롤링 실행
+      - name: Run scraper
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: python main.py
 
-      - name: 결과 저장 (강제 동기화 버전)
+      - name: Commit latest.txt if changed
         run: |
-          git config --global user.name 'NoticeBot'
-          git config --global user.email 'bot@noreply.github.com'
-          
-          # [핵심 로직] 서버의 족보를 가져와서 내 족보를 강제로 맞춤
-          git fetch origin main
-          git reset origin/main
-          
-          # 이제 깨끗한 상태에서 파일을 다시 등록
+          set -e
+
+          # latest.txt가 없으면(첫 실행) main.py가 만들었어야 정상
+          if [ ! -f latest.txt ]; then
+            echo "latest.txt not found. main.py should create it."
+            exit 1
+          fi
+
           git add latest.txt
-          
-          # 변경사항이 있으면 저장하고 올림 (없으면 조용히 종료)
-          git commit -m "Update latest notice" || exit 0
-          git push origin main
- 
+
+          # 변경 없으면 조용히 종료
+          if git diff --staged --quiet; then
+            echo "No change in latest.txt"
+            exit 0
+          fi
+
+          git config user.name "NoticeBot"
+          git config user.email "bot@noreply.github.com"
+
+          # 원격이 먼저 바뀐 경우를 대비해 안전하게 동기화
+          git stash -u
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git stash pop || true
+
+          git add latest.txt
+          git commit -m "Update latest notice state"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
