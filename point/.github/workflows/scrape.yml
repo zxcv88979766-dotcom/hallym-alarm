@@ -1,5 +1,5 @@
 name: Hallym Notice Scraper
-
+ 
 on:
   schedule:
     - cron: '0 * * * *' # 매시 정각마다 실행 (1시간 간격)
