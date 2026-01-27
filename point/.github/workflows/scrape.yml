@@ -28,11 +28,18 @@ jobs:
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: python main.py
 
-      - name: 결과 저장 (무조건 성공하는 버전)
+      - name: 결과 저장 (강제 동기화 버전)
         run: |
           git config --global user.name 'NoticeBot'
           git config --global user.email 'bot@noreply.github.com'
+          
+          # [핵심 로직] 서버의 족보를 가져와서 내 족보를 강제로 맞춤
+          git fetch origin main
+          git reset origin/main
+          
+          # 이제 깨끗한 상태에서 파일을 다시 등록
           git add latest.txt
+          
+          # 변경사항이 있으면 저장하고 올림 (없으면 조용히 종료)
           git commit -m "Update latest notice" || exit 0
-          git pull --rebase
-          git push
+          git push origin main
