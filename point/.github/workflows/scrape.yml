@@ -28,16 +28,11 @@ jobs:
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: python main.py
 
-      - name: 결과 저장 (새 글 있으면 기록)
+      - name: 결과 저장 (무조건 성공하는 버전)
         run: |
           git config --global user.name 'NoticeBot'
           git config --global user.email 'bot@noreply.github.com'
           git add latest.txt
-          # 변경사항이 있는지 확인하고 처리하는 안전한 코드
-          if git diff --staged --quiet; then
-            echo "변경사항이 없습니다."
-          else
-            git commit -m "Update latest notice"
-            git pull --rebase
-            git push
-          fi
+          git commit -m "Update latest notice" || exit 0
+          git pull --rebase
+          git push
