@@ -43,3 +43,4 @@ jobs:
           # 변경사항이 있으면 저장하고 올림 (없으면 조용히 종료)
           git commit -m "Update latest notice" || exit 0
           git push origin main
+ 
